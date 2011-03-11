@@ -50,7 +50,7 @@ Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
     x##flate_s.next_in = (Bytef*)Buffer_Data(input);                           \
     int length = x##flate_s.avail_in = Buffer_Length(input);                   \
                                                                                \
-    int status;                                                                \
+    int ret;                                                                   \
     char* result = NULL;                                                       \
                                                                                \
     int compressed = 0;                                                        \
@@ -61,8 +61,8 @@ Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
         x##flate_s.avail_out = factor * length;                                \
         x##flate_s.next_out = (Bytef*)result + compressed;                     \
                                                                                \
-        status = x##flate(&x##flate_s, Z_FINISH);                              \
-        if (status != Z_STREAM_END && status != Z_OK) {                        \
+        ret = x##flate(&x##flate_s, Z_FINISH);                                 \
+        if (ret != Z_STREAM_END && ret != Z_OK && ret != Z_BUF_ERROR) {        \
             free(result);                                                      \
             return ZLib_error(x##flate_s.msg);                                 \
         }                                                                      \
@@ -70,8 +70,8 @@ Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
         compressed += (factor * length - x##flate_s.avail_out);                \
     } while (x##flate_s.avail_out == 0);                                       \
                                                                                \
-    status = x##flateReset(&x##flate_s);                                       \
-    if (status != Z_OK) {                                                      \
+    ret = x##flateReset(&x##flate_s);                                          \
+    if (ret != Z_OK) {                                                         \
         free(result);                                                          \
         return ZLib_error(x##flate_s.msg);                                     \
     }                                                                          \
