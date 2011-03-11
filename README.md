@@ -15,6 +15,8 @@ Install with `npm install zlib`.
     var compressed = zlib.deflate(input);
     var output = zlib.inflate(compressed);
 
+Note that `node-zlib` is only intended for small (< 128 KB) data that you already have buffered. It is not meant for input/output streams.
+
 # BUILDING
 
 Make sure you have `zlib` installed. Mac OS X ships with it by default.
