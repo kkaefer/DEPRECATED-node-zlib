@@ -4,26 +4,40 @@
 #include <node_version.h>
 
 #include <zlib.h>
+#include <cstring>
+
 
 using namespace v8;
 using namespace node;
+
+
+// node v0.2 compatibility
+#if NODE_VERSION_AT_LEAST(0,3,0)
+    #define Buffer_Data Buffer::Data
+    #define Buffer_Length Buffer::Length
+    #define Buffer_New Buffer::New
+#else
+    inline char* Buffer_Data(Handle<Object> obj) {
+        return (ObjectWrap::Unwrap<Buffer>(obj))->data();
+    }
+    inline size_t Buffer_Length(Handle<Object> obj) {
+        return (ObjectWrap::Unwrap<Buffer>(obj))->length();
+    }
+    inline Buffer* Buffer_New(char* data, size_t length) {
+        Buffer* buffer = Buffer::New(length);
+        memcpy(buffer->data(), data, length);
+        return buffer;
+    }
+#endif
+
 
 z_stream stream;
 
 class ZLib {
 public:
-
-    static Handle<Value> Error() {
-        if (stream.msg) {
-            return ThrowException(Exception::Error(String::New(stream.msg)));
-        }
-        else {
-            return ThrowException(Exception::Error(String::New("Unknown error")));
-        }
-    }
-
-    static Handle<Value> Error(const char* msg) {
-        return ThrowException(Exception::Error(String::New(msg)));
+    static inline Handle<Value> Error(const char* msg = NULL) {
+        return ThrowException(Exception::Error(
+            String::New(msg ? msg : "Unknown Error")));
     }
 
     static Handle<Value> Deflate(const Arguments& args) {
@@ -33,15 +47,9 @@ public:
             return Error("Expected Buffer as first argument");
         }
 
-#if NODE_VERSION_AT_LEAST(0,3,0)
-        Local<Object> buffer = args[0]->ToObject();
-        stream.next_in = (Bytef*)Buffer::Data(buffer);
-        int length = stream.avail_in = Buffer::Length(buffer);
-#else
-        Buffer* buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
-        stream.next_in = (Bytef*)buffer->data();
-        int length = stream.avail_in = buffer->length();
-#endif
+        Local<Object> input = args[0]->ToObject();
+        stream.next_in = (Bytef*)Buffer_Data(input);
+        int length = stream.avail_in = Buffer_Length(input);
 
         int status;
         char* result = NULL;
@@ -49,34 +57,34 @@ public:
         int compressed = 0;
         do {
             result = (char*)realloc(result, compressed + length);
-            if (!result) return Error("Failed to allocate memory");
+            if (!result) return Error("Could not allocate memory");
 
             stream.avail_out = length;
             stream.next_out = (Bytef*)result + compressed;
 
             status = deflate(&stream, Z_FINISH);
-            if (status != Z_STREAM_END && status != Z_OK) return Error();
+            if (status != Z_STREAM_END && status != Z_OK) {
+                free(result);
+                return Error(stream.msg);
+            }
 
             compressed += (length - stream.avail_out);
         } while (stream.avail_out == 0);
 
         status = deflateReset(&stream);
-        if (status != Z_OK) return Error();
+        if (status != Z_OK) {
+            free(result);
+            return Error(stream.msg);
+        }
 
-#if NODE_VERSION_AT_LEAST(0,3,0)
-        Buffer* resultBuffer = Buffer::New(result, compressed);
-#else
-        Buffer *resultBuffer = Buffer::New(compressed);
-        memcpy(buffer->data(), result, compressed);
-#endif
+        Buffer* output = Buffer_New(result, compressed);
         free(result);
-
-        return scope.Close(Local<Value>::New(resultBuffer->handle_));
+        return scope.Close(Local<Value>::New(output->handle_));
     }
 };
 
 
-extern "C" void init (v8::Handle<Object> target) {
+extern "C" void init (Handle<Object> target) {
     stream.zalloc = Z_NULL;
     stream.zfree = Z_NULL;
     stream.opaque = Z_NULL;
