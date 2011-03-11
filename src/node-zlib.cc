@@ -31,7 +31,7 @@ using namespace node;
 #endif
 
 
-z_stream stream;
+z_stream deflate_s;
 
 class ZLib {
 public:
@@ -48,8 +48,8 @@ public:
         }
 
         Local<Object> input = args[0]->ToObject();
-        stream.next_in = (Bytef*)Buffer_Data(input);
-        int length = stream.avail_in = Buffer_Length(input);
+        deflate_s.next_in = (Bytef*)Buffer_Data(input);
+        int length = deflate_s.avail_in = Buffer_Length(input);
 
         int status;
         char* result = NULL;
@@ -59,22 +59,22 @@ public:
             result = (char*)realloc(result, compressed + length);
             if (!result) return Error("Could not allocate memory");
 
-            stream.avail_out = length;
-            stream.next_out = (Bytef*)result + compressed;
+            deflate_s.avail_out = length;
+            deflate_s.next_out = (Bytef*)result + compressed;
 
-            status = deflate(&stream, Z_FINISH);
+            status = deflate(&deflate_s, Z_FINISH);
             if (status != Z_STREAM_END && status != Z_OK) {
                 free(result);
-                return Error(stream.msg);
+                return Error(deflate_s.msg);
             }
 
-            compressed += (length - stream.avail_out);
-        } while (stream.avail_out == 0);
+            compressed += (length - deflate_s.avail_out);
+        } while (deflate_s.avail_out == 0);
 
-        status = deflateReset(&stream);
+        status = deflateReset(&deflate_s);
         if (status != Z_OK) {
             free(result);
-            return Error(stream.msg);
+            return Error(deflate_s.msg);
         }
 
         Buffer* output = Buffer_New(result, compressed);
@@ -85,10 +85,10 @@ public:
 
 
 extern "C" void init (Handle<Object> target) {
-    stream.zalloc = Z_NULL;
-    stream.zfree = Z_NULL;
-    stream.opaque = Z_NULL;
-    deflateInit(&stream, Z_DEFAULT_COMPRESSION);
+    deflate_s.zalloc = Z_NULL;
+    deflate_s.zfree = Z_NULL;
+    deflate_s.opaque = Z_NULL;
+    deflateInit(&deflate_s, Z_DEFAULT_COMPRESSION);
 
     NODE_SET_METHOD(target, "deflate", ZLib::Deflate);
 }
