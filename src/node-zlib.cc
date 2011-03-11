@@ -5,6 +5,7 @@
 
 #include <zlib.h>
 #include <cstring>
+#include <cstdlib>
 
 using namespace v8;
 using namespace node;
