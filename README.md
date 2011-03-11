@@ -1,6 +1,6 @@
 # NAME
 
-node-zlib - Simple, synchronous deflate/inflate for node.js buffers
+node-zlib - Simple, synchronous deflate/inflate for node.js buffers.
 
 
 
