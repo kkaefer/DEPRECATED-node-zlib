@@ -6,12 +6,10 @@
 #include <zlib.h>
 #include <cstring>
 
-
 using namespace v8;
 using namespace node;
 
-
-// node v0.2 compatibility
+// node v0.2.x compatibility
 #if NODE_VERSION_AT_LEAST(0,3,0)
     #define Buffer_Data Buffer::Data
     #define Buffer_Length Buffer::Length
@@ -32,63 +30,67 @@ using namespace node;
 
 
 z_stream deflate_s;
+z_stream inflate_s;
 
-class ZLib {
-public:
-    static inline Handle<Value> Error(const char* msg = NULL) {
-        return ThrowException(Exception::Error(
-            String::New(msg ? msg : "Unknown Error")));
-    }
+inline Handle<Value> ZLib_error(const char* msg = NULL) {
+    return ThrowException(Exception::Error(
+        String::New(msg ? msg : "Unknown Error")));
+}
 
-    static Handle<Value> Deflate(const Arguments& args) {
-        HandleScope scope;
+#define ZLib_Xflate(x, factor)                                                 \
+Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
+    HandleScope scope;                                                         \
+                                                                               \
+    if (args.Length() < 1 || !Buffer::HasInstance(args[0])) {                  \
+        return ZLib_error("Expected Buffer as first argument");                \
+    }                                                                          \
+                                                                               \
+    Local<Object> input = args[0]->ToObject();                                 \
+    x##flate_s.next_in = (Bytef*)Buffer_Data(input);                           \
+    int length = x##flate_s.avail_in = Buffer_Length(input);                   \
+                                                                               \
+    int status;                                                                \
+    char* result = NULL;                                                       \
+                                                                               \
+    int compressed = 0;                                                        \
+    do {                                                                       \
+        result = (char*)realloc(result, compressed + factor * length);         \
+        if (!result) return ZLib_error("Could not allocate memory");           \
+                                                                               \
+        x##flate_s.avail_out = factor * length;                                \
+        x##flate_s.next_out = (Bytef*)result + compressed;                     \
+                                                                               \
+        status = x##flate(&x##flate_s, Z_FINISH);                              \
+        if (status != Z_STREAM_END && status != Z_OK) {                        \
+            free(result);                                                      \
+            return ZLib_error(x##flate_s.msg);                                 \
+        }                                                                      \
+                                                                               \
+        compressed += (factor * length - x##flate_s.avail_out);                \
+    } while (x##flate_s.avail_out == 0);                                       \
+                                                                               \
+    status = x##flateReset(&x##flate_s);                                       \
+    if (status != Z_OK) {                                                      \
+        free(result);                                                          \
+        return ZLib_error(x##flate_s.msg);                                     \
+    }                                                                          \
+                                                                               \
+    Buffer* output = Buffer_New(result, compressed);                           \
+    free(result);                                                              \
+    return scope.Close(Local<Value>::New(output->handle_));                    \
+}
 
-        if (args.Length() < 1 || !Buffer::HasInstance(args[0])) {
-            return Error("Expected Buffer as first argument");
-        }
-
-        Local<Object> input = args[0]->ToObject();
-        deflate_s.next_in = (Bytef*)Buffer_Data(input);
-        int length = deflate_s.avail_in = Buffer_Length(input);
-
-        int status;
-        char* result = NULL;
-
-        int compressed = 0;
-        do {
-            result = (char*)realloc(result, compressed + length);
-            if (!result) return Error("Could not allocate memory");
-
-            deflate_s.avail_out = length;
-            deflate_s.next_out = (Bytef*)result + compressed;
-
-            status = deflate(&deflate_s, Z_FINISH);
-            if (status != Z_STREAM_END && status != Z_OK) {
-                free(result);
-                return Error(deflate_s.msg);
-            }
-
-            compressed += (length - deflate_s.avail_out);
-        } while (deflate_s.avail_out == 0);
-
-        status = deflateReset(&deflate_s);
-        if (status != Z_OK) {
-            free(result);
-            return Error(deflate_s.msg);
-        }
-
-        Buffer* output = Buffer_New(result, compressed);
-        free(result);
-        return scope.Close(Local<Value>::New(output->handle_));
-    }
-};
-
+ZLib_Xflate(de, 1);
+ZLib_Xflate(in, 2);
 
 extern "C" void init (Handle<Object> target) {
-    deflate_s.zalloc = Z_NULL;
-    deflate_s.zfree = Z_NULL;
-    deflate_s.opaque = Z_NULL;
-    deflateInit(&deflate_s, Z_DEFAULT_COMPRESSION);
+    deflate_s.zalloc = inflate_s.zalloc = Z_NULL;
+    deflate_s.zfree  = inflate_s.zfree  = Z_NULL;
+    deflate_s.opaque = inflate_s.opaque = Z_NULL;
 
-    NODE_SET_METHOD(target, "deflate", ZLib::Deflate);
+    deflateInit(&deflate_s, Z_DEFAULT_COMPRESSION);
+    inflateInit(&inflate_s);
+
+    NODE_SET_METHOD(target, "deflate", ZLib_deflate);
+    NODE_SET_METHOD(target, "inflate", ZLib_inflate);
 }
