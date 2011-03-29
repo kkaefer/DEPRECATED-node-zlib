@@ -46,6 +46,10 @@ Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
         return ZLib_error("Expected Buffer as first argument");                \
     }                                                                          \
                                                                                \
+    if ((x##flateReset(&x##flate_s)) != Z_OK) {                                \
+        assert((false, "ZLib stream is beyond repair"));                       \
+    }                                                                          \
+                                                                               \
     Local<Object> input = args[0]->ToObject();                                 \
     x##flate_s.next_in = (Bytef*)Buffer_Data(input);                           \
     int length = x##flate_s.avail_in = Buffer_Length(input);                   \
@@ -69,12 +73,6 @@ Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
                                                                                \
         compressed += (factor * length - x##flate_s.avail_out);                \
     } while (x##flate_s.avail_out == 0);                                       \
-                                                                               \
-    ret = x##flateReset(&x##flate_s);                                          \
-    if (ret != Z_OK) {                                                         \
-        free(result);                                                          \
-        return ZLib_error(x##flate_s.msg);                                     \
-    }                                                                          \
                                                                                \
     Buffer* output = Buffer_New(result, compressed);                           \
     free(result);                                                              \
