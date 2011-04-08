@@ -1,6 +1,6 @@
 var assert = require('assert');
 var Buffer = require('buffer').Buffer;
-var zlib = require('../lib/zlib');
+var zlib = require('../lib/zlib').ZLibContext();
 
 exports['test inflate fail'] = function(beforeExit) {
     var compressed = new Buffer('\x78\x80\x9c\xab\x56\x4a\x93\xaf\x46\x00\x1b\xa9\x02\x77\x92\x0f', 'binary');

@@ -1,2 +1,3 @@
 build
+lib/*.node
 .lock-wscript
