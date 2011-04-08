@@ -62,10 +62,19 @@ Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
         hasDict = true;                                                        \
     }                                                                          \
                                                                                \
+    int ret;                                                                   \
+    if (factor == 1 && hasDict) {                                              \
+        ret = x##flateSetDictionary(&x##flate_s, bdict, dictLen);              \
+                                                                               \
+        if (ret != Z_OK) {                                                     \
+            return ZLib_error("Failed to set dictionary!");                    \
+        }                                                                      \
+                                                                               \
+    }                                                                          \
+                                                                               \
     x##flate_s.next_in = (Bytef*)Buffer_Data(input);                           \
     int length = x##flate_s.avail_in = Buffer_Length(input);                   \
                                                                                \
-    int ret;                                                                   \
     char* result = NULL;                                                       \
                                                                                \
     int compressed = 0;                                                        \
@@ -78,7 +87,7 @@ Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
                                                                                \
         ret = x##flate(&x##flate_s, Z_SYNC_FLUSH);                             \
                                                                                \
-        if (Z_NEED_DICT) {                                                     \
+        if (ret == Z_NEED_DICT) {                                              \
             if (!hasDict) {                                                    \
                 free(result);                                                  \
                 return ZLib_error("Dictionary is required");                   \
