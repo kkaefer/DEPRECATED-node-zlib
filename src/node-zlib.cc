@@ -29,7 +29,6 @@ using namespace node;
     }
 #endif
 
-
 z_stream deflate_s;
 z_stream inflate_s;
 
@@ -51,6 +50,18 @@ Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
     }                                                                          \
                                                                                \
     Local<Object> input = args[0]->ToObject();                                 \
+                                                                               \
+    bool hasDict = false;                                                      \
+    Local<Object> dict;                                                        \
+    Bytef* bdict;                                                              \
+    int dictLen;                                                               \
+    if (args.Length() >= 2 && Buffer::HasInstance(args[1])) {                  \
+        dict = args[1]->ToObject();                                            \
+        bdict = (Bytef*)Buffer_Data(dict);                                     \
+        dictLen = Buffer_Length(dict);                                         \
+        hasDict = true;                                                        \
+    }                                                                          \
+                                                                               \
     x##flate_s.next_in = (Bytef*)Buffer_Data(input);                           \
     int length = x##flate_s.avail_in = Buffer_Length(input);                   \
                                                                                \
@@ -65,10 +76,26 @@ Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
         x##flate_s.avail_out = factor * length;                                \
         x##flate_s.next_out = (Bytef*)result + compressed;                     \
                                                                                \
-        ret = x##flate(&x##flate_s, Z_FINISH);                                 \
+        ret = x##flate(&x##flate_s, Z_SYNC_FLUSH);                             \
+                                                                               \
+        if (Z_NEED_DICT) {                                                     \
+            if (!hasDict) {                                                    \
+                free(result);                                                  \
+                return ZLib_error("Dictionary is required");                   \
+            }                                                                  \
+            ret = x##flateSetDictionary(&x##flate_s, bdict,                    \
+                                        dictLen);                              \
+                                                                               \
+            if (ret != Z_OK) {                                                 \
+              return ZLib_error("Failed to set dictionary");                   \
+            }                                                                  \
+                                                                               \
+            ret = x##flate(&x##flate_s, Z_SYNC_FLUSH);                         \
+        }                                                                      \
+                                                                               \
         if (ret != Z_STREAM_END && ret != Z_OK && ret != Z_BUF_ERROR) {        \
-            free(result);                                                      \
-            return ZLib_error(x##flate_s.msg);                                 \
+                free(result);                                                  \
+                return ZLib_error(x##flate_s.msg);                             \
         }                                                                      \
                                                                                \
         compressed += (factor * length - x##flate_s.avail_out);                \
