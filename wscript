@@ -1,3 +1,4 @@
+import os
 import Options
 from os.path import exists
 from shutil import copy2 as copy
@@ -15,6 +16,11 @@ def configure(conf):
   conf.check_tool("node_addon")
   if not conf.check(lib="z", libpath=['/usr/local/lib'], uselib_store="ZLIB"):
     conf.fatal('Missing zlib');
+
+  linkflags = []
+  if os.environ.has_key('LINKFLAGS'):
+    linkflags.extend(os.environ['LINKFLAGS'].split(' '))
+  conf.env.append_value("LINKFLAGS", linkflags)
 
 def build(bld):
   obj = bld.new_task_gen("cxx", "shlib", "node_addon")
