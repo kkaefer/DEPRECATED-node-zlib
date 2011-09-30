@@ -38,6 +38,16 @@ inline Handle<Value> ZLib_error(const char* msg = NULL) {
         String::New(msg ? msg : "Unknown Error")));
 }
 
+inline Handle<Value> ZLib_crc32(const Arguments& args){
+  HandleScope scope;
+  
+  Local<Object> data = args[0]->ToObject();
+  int length = Buffer_Length(data);
+  ulong sum = args[1]->IsNumber() ? args[1]->NumberValue() : 0;
+    
+  return scope.Close(Number::New(crc32(sum,(Bytef*)Buffer_Data(data),length)));
+}
+
 #define ZLib_Xflate(x, factor)                                                 \
 Handle<Value> ZLib_##x##flate(const Arguments& args) {                         \
     HandleScope scope;                                                         \
@@ -92,4 +102,5 @@ extern "C" void init (Handle<Object> target) {
 
     NODE_SET_METHOD(target, "deflate", ZLib_deflate);
     NODE_SET_METHOD(target, "inflate", ZLib_inflate);
+    NODE_SET_METHOD(target, "crc32", ZLib_crc32);
 }
