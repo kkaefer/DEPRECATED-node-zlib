@@ -1,7 +1,7 @@
 {
     "name": "zlibcontext",
     "description": "Simple, synchronous deflate/inflate for buffers (ZLibContext modification)",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "homepage": "https://github.com/kkaefer/node-zlib",
     "author": "Fedor Indutny <fedor.indutny@gmail.com>",
     "contributors": [
@@ -12,7 +12,7 @@
         "url": "git://github.com/kkaefer/node-zlib.git"
     },
     "engines": {
-        "node": ">=0.4.0"
+        "node": ">=0.6.0"
     },
     "licenses": [
         { "type": "BSD" }
