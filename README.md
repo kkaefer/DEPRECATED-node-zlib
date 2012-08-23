@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/kkaefer/node-zlib.png)](http://travis-ci.org/kkaefer/node-zlib)
 # NAME
 
 node-zlib - Simple, synchronous deflate/inflate for node.js buffers.
