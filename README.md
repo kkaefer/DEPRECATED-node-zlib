@@ -1,3 +1,7 @@
+# DO NOT USE – DEPRECATED
+
+This extension is deprecated since the functionality was folded into node.js core: https://nodejs.org/dist/latest/docs/api/zlib.html
+
 # NAME
 
 node-zlib - Simple, synchronous deflate/inflate for node.js buffers.
